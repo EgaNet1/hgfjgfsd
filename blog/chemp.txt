@@ -1,0 +1,48 @@
+import cv2
+import os
+import glob
+import pytesseract
+import re
+
+pytesseract.pytesseract.tesseract_cmd = r'C:\\project vs\\mar\\chemp\\tesseract.exe'
+
+custom_config = r'--oem 3 --psm 6 -c tessedit_char_whitelist=ABEKMHOPCTYX0123456789'
+
+def get_images_from_folder(folder_path):
+    image_paths = []
+    image_extensions = ['*.jpg', '*.jpeg', '*.png', '*.gif', '*.bmp']
+    for ext in image_extensions:
+        image_paths.extend(glob.glob(os.path.join(folder_path, ext)))
+    return image_paths
+
+def process_image(image_path, output_file):
+    carplate_img = cv2.cvtColor(cv2.imread(image_path), cv2.COLOR_BGR2RGB)
+    gray = cv2.cvtColor(carplate_img, cv2.COLOR_RGB2GRAY)
+    text = pytesseract.image_to_string(gray, config=custom_config)
+    if text.strip():
+        text = text.replace('0', 'O').replace('8', 'B')
+        if re.match(r'[ABEKMHOPCTYX]{1}\d{3}[ABEKMHOPCTYX]{2}\d{2,3}', text):
+            with open(output_file, 'a') as f:
+                f.write(f"{image_path}:\n{text}\n\n")
+
+def filter_and_save(output_file):
+    filtered_output_file = "filtered_" + output_file
+    with open(output_file, 'r') as f:
+        lines = f.readlines()
+    
+    with open(filtered_output_file, 'w') as f:
+        for i in range(0, len(lines), 3):
+            text = lines[i+1].strip()
+            if len(text) >= 8 and len(text) <= 9:
+                f.write(lines[i])
+                f.write(lines[i+1])
+                f.write(lines[i+2])
+
+folder_path = r"C:\\project vs\\mar\\chemp\\img"
+output_file = "C:\project vs\mar\chemp\chemp\output.txt"
+image_paths = get_images_from_folder(folder_path)
+
+for image_path in image_paths:
+    process_image(image_path, output_file)
+
+filter_and_save(output_file)
